@@ -1273,8 +1273,10 @@ local function writeVector2(out, name, v)
     if v == nil then
         return
     end
-    local x, y = v.X, v.Y
-    if x == nil or y == nil then
+    local ok, x, y = pcall(function()
+        return v.X, v.Y
+    end)
+    if not ok or x == nil or y == nil then
         return
     end
     push(out, '<Vector2 name="' .. xmlEscape(name) .. '">')
@@ -1769,12 +1771,12 @@ end
 
 local function writeGuiObjectProperties(out, inst)
     writeBool(out, 'Active', safeGet(inst, 'Active'))
-    writeBool(out, 'AnchorPoint', safeGet(inst, 'AnchorPoint'))
     writeBool(out, 'ClipsDescendants', safeGet(inst, 'ClipsDescendants'))
     writeBool(out, 'Visible', safeGet(inst, 'Visible'))
 
-    writeVector2(out, 'Position', safeGet(inst, 'Position'))
-    writeVector2(out, 'Size', safeGet(inst, 'Size'))
+    writeUDim2(out, 'Position', safeGet(inst, 'Position'))
+    writeUDim2(out, 'Size', safeGet(inst, 'Size'))
+    writeVector2(out, 'AnchorPoint', safeGet(inst, 'AnchorPoint'))
     writeVector2(out, 'AbsoluteSize', safeGet(inst, 'AbsoluteSize'))
     writeVector2(out, 'AbsolutePosition', safeGet(inst, 'AbsolutePosition'))
 
