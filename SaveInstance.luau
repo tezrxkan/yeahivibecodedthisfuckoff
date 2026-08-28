@@ -1199,6 +1199,13 @@ local function normalizeAssetUrl(v)
         if v == '' then
             return nil
         end
+        if v:find('rbxasset', 1, true) or v:find('http://', 1, true) or v:find('https://', 1, true) then
+            return v
+        end
+        local num = tonumber(v)
+        if num then
+            return 'rbxassetid://' .. tostring(math.floor(num))
+        end
         return v
     end
 
@@ -1206,24 +1213,91 @@ local function normalizeAssetUrl(v)
         return 'rbxassetid://' .. tostring(math.floor(v))
     end
 
-    local uri = safeGet(v, 'Uri') or safeGet(v, 'URI') or safeGet(v, 'uri')
-    if uri ~= nil then
-        return normalizeAssetUrl(uri)
+    if t == 'userdata' then
+        local uri = safeGet(v, 'Uri') or safeGet(v, 'URI') or safeGet(v, 'uri')
+        if uri ~= nil then
+            return normalizeAssetUrl(uri)
+        end
+
+        local value = safeGet(v, 'Value') or safeGet(v, 'value')
+        if value ~= nil then
+            return normalizeAssetUrl(value)
+        end
+
+        local id = safeGet(v, 'Id') or safeGet(v, 'id')
+        if id ~= nil then
+            return normalizeAssetUrl(id)
+        end
+
+        local assetId = safeGet(v, 'AssetId') or safeGet(v, 'assetId')
+        if assetId ~= nil then
+            return normalizeAssetUrl(assetId)
+        end
+
+        local contentId = safeGet(v, 'ContentId') or safeGet(v, 'contentId')
+        if contentId ~= nil then
+            return normalizeAssetUrl(contentId)
+        end
+
+        local name = safeGet(v, 'Name')
+        if name ~= nil then
+            return normalizeAssetUrl(name)
+        end
+
+        local ok, s = pcall(tostring, v)
+        if ok and type(s) == 'string' and s ~= '' and s ~= 'nil' then
+            if s:find('rbxasset', 1, true) or s:find('http://', 1, true) or s:find('https://', 1, true) then
+                return s
+            end
+            local num = tonumber(s)
+            if num and num > 0 then
+                return 'rbxassetid://' .. tostring(math.floor(num))
+            end
+        end
+        return nil
     end
 
-    local value = safeGet(v, 'Value') or safeGet(v, 'value')
-    if value ~= nil then
-        return normalizeAssetUrl(value)
+    if t == 'table' then
+        local uri = safeGet(v, 'Uri') or safeGet(v, 'URI') or safeGet(v, 'uri')
+        if uri ~= nil then
+            return normalizeAssetUrl(uri)
+        end
+
+        local value = safeGet(v, 'Value') or safeGet(v, 'value')
+        if value ~= nil then
+            return normalizeAssetUrl(value)
+        end
+
+        local id = safeGet(v, 'Id') or safeGet(v, 'id')
+        if id ~= nil then
+            return normalizeAssetUrl(id)
+        end
+
+        local assetId = safeGet(v, 'AssetId') or safeGet(v, 'assetId')
+        if assetId ~= nil then
+            return normalizeAssetUrl(assetId)
+        end
+
+        local contentId = safeGet(v, 'ContentId') or safeGet(v, 'contentId')
+        if contentId ~= nil then
+            return normalizeAssetUrl(contentId)
+        end
+
+        local name = safeGet(v, 'Name')
+        if name ~= nil then
+            return normalizeAssetUrl(name)
+        end
     end
 
-    local id = safeGet(v, 'Id') or safeGet(v, 'id')
-    if id ~= nil then
-        return normalizeAssetUrl(id)
-    end
-
-    local s = tostring(v)
-    if s:find('rbxasset', 1, true) or s:find('http://', 1, true) or s:find('https://', 1, true) then
-        return s
+    local ok, s = pcall(tostring, v)
+    if ok and type(s) == 'string' and s ~= '' and s ~= 'nil' then
+        if s:find('rbxasset', 1, true) or s:find('http://', 1, true) or s:find('https://', 1, true) then
+            return s
+        end
+        local num = tonumber(s)
+        if num and num > 0 then
+            return 'rbxassetid://' .. tostring(math.floor(num))
+        end
     end
     return nil
 end
@@ -1791,6 +1865,36 @@ end
 
 CLASS_HANDLERS.MeshPart = function(out, inst, _state)
     writeContentProps(out, inst, 'MeshPart')
+
+    local meshId = safeGet(inst, 'MeshId')
+    if meshId ~= nil then
+        local written = false
+        local ok, url = pcall(normalizeAssetUrl, meshId)
+        if ok and url ~= nil then
+            written = true
+        end
+        if not written then
+            local s = tostring(meshId)
+            if s ~= '' and s ~= 'nil' then
+                writeString(out, 'MeshId', s)
+            end
+        end
+    end
+
+    local texId = safeGet(inst, 'TextureID')
+    if texId ~= nil then
+        local written = false
+        local ok, url = pcall(normalizeAssetUrl, texId)
+        if ok and url ~= nil then
+            written = true
+        end
+        if not written then
+            local s = tostring(texId)
+            if s ~= '' and s ~= 'nil' then
+                writeString(out, 'TextureID', s)
+            end
+        end
+    end
 end
 
 CLASS_HANDLERS.SpecialMesh = function(out, inst, _state)
@@ -2726,6 +2830,14 @@ local SKIP_PROPERTIES = {
     Parent = true,
     ClassName = true,
     UniqueId = true,
+    MeshId = true,
+    TextureId = true,
+    TextureID = true,
+    MeshContent = true,
+    TextureContent = true,
+    SoundId = true,
+    AudioContent = true,
+    Graphic = true,
 }
 
 local function writeSpecProperties(out, inst, state)
