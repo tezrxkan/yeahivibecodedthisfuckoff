@@ -1189,6 +1189,33 @@ local function writeString(out, name, v)
     writeTag(out, 'string', { name = name }, xmlEscape(v))
 end
 
+local INVALID_URL_PATTERNS = {
+    'failed', 'error', 'nil', 'unable', 'could not', 'cannot',
+    'not found', 'invalid', 'empty', 'null',
+}
+
+local function isValidAssetUrl(s)
+    if type(s) ~= 'string' or s == '' then
+        return false
+    end
+    local lower = s:lower()
+    for _, pat in ipairs(INVALID_URL_PATTERNS) do
+        if lower:find(pat, 1, true) then
+            return false
+        end
+    end
+    if s:find('^%d+$') then
+        return true
+    end
+    if s:find('rbxasset', 1, true) then
+        return true
+    end
+    if s:find('http://', 1, true) or s:find('https://', 1, true) then
+        return true
+    end
+    return false
+end
+
 local function normalizeAssetUrl(v)
     if v == nil then
         return nil
@@ -1199,14 +1226,16 @@ local function normalizeAssetUrl(v)
         if v == '' then
             return nil
         end
-        if v:find('rbxasset', 1, true) or v:find('http://', 1, true) or v:find('https://', 1, true) then
-            return v
+        if isValidAssetUrl(v) then
+            if v:find('rbxasset', 1, true) or v:find('http://', 1, true) or v:find('https://', 1, true) then
+                return v
+            end
+            local num = tonumber(v)
+            if num then
+                return 'rbxassetid://' .. tostring(math.floor(num))
+            end
         end
-        local num = tonumber(v)
-        if num then
-            return 'rbxassetid://' .. tostring(math.floor(num))
-        end
-        return v
+        return nil
     end
 
     if t == 'number' then
@@ -1246,12 +1275,14 @@ local function normalizeAssetUrl(v)
 
         local ok, s = pcall(tostring, v)
         if ok and type(s) == 'string' and s ~= '' and s ~= 'nil' then
-            if s:find('rbxasset', 1, true) or s:find('http://', 1, true) or s:find('https://', 1, true) then
-                return s
-            end
-            local num = tonumber(s)
-            if num and num > 0 then
-                return 'rbxassetid://' .. tostring(math.floor(num))
+            if isValidAssetUrl(s) then
+                if s:find('rbxasset', 1, true) or s:find('http://', 1, true) or s:find('https://', 1, true) then
+                    return s
+                end
+                local num = tonumber(s)
+                if num and num > 0 then
+                    return 'rbxassetid://' .. tostring(math.floor(num))
+                end
             end
         end
         return nil
@@ -1291,12 +1322,14 @@ local function normalizeAssetUrl(v)
 
     local ok, s = pcall(tostring, v)
     if ok and type(s) == 'string' and s ~= '' and s ~= 'nil' then
-        if s:find('rbxasset', 1, true) or s:find('http://', 1, true) or s:find('https://', 1, true) then
-            return s
-        end
-        local num = tonumber(s)
-        if num and num > 0 then
-            return 'rbxassetid://' .. tostring(math.floor(num))
+        if isValidAssetUrl(s) then
+            if s:find('rbxasset', 1, true) or s:find('http://', 1, true) or s:find('https://', 1, true) then
+                return s
+            end
+            local num = tonumber(s)
+            if num and num > 0 then
+                return 'rbxassetid://' .. tostring(math.floor(num))
+            end
         end
     end
     return nil
@@ -1875,7 +1908,7 @@ CLASS_HANDLERS.MeshPart = function(out, inst, _state)
         end
         if not written then
             local s = tostring(meshId)
-            if s ~= '' and s ~= 'nil' then
+            if s ~= '' and s ~= 'nil' and isValidAssetUrl(s) then
                 writeString(out, 'MeshId', s)
             end
         end
@@ -1890,7 +1923,7 @@ CLASS_HANDLERS.MeshPart = function(out, inst, _state)
         end
         if not written then
             local s = tostring(texId)
-            if s ~= '' and s ~= 'nil' then
+            if s ~= '' and s ~= 'nil' and isValidAssetUrl(s) then
                 writeString(out, 'TextureID', s)
             end
         end
