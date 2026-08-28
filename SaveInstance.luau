@@ -2720,14 +2720,22 @@ local function writeAttributes(out, inst)
     end
 end
 
+local SKIP_PROPERTIES = {
+    Parent = true,
+    ClassName = true,
+    UniqueId = true,
+}
+
 local function writeSpecProperties(out, inst, state)
     local list = KNOWN_PROPERTIES[inst.ClassName]
     if type(list) ~= 'table' then
         return
     end
     for _, prop in ipairs(list) do
-        if not BASE_PART_WRITE_PROPS[prop] or not inst:IsA('BasePart') then
-            writeAny(out, prop, safeGet(inst, prop), state)
+        if not SKIP_PROPERTIES[prop] then
+            if not BASE_PART_WRITE_PROPS[prop] or not inst:IsA('BasePart') then
+                writeAny(out, prop, safeGet(inst, prop), state)
+            end
         end
     end
 end
