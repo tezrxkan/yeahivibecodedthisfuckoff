@@ -1336,7 +1336,24 @@ local function normalizeAssetUrl(v)
 end
 
 local function writeContent(out, name, url)
-    local normalized = normalizeAssetUrl(url)
+    if url == nil then
+        return
+    end
+    local raw = tostring(url)
+    if raw == '' or raw == 'nil' then
+        return
+    end
+    local normalized = nil
+    if raw:find('rbxasset', 1, true) or raw:find('http://', 1, true) or raw:find('https://', 1, true) then
+        normalized = raw
+    else
+        local num = tonumber(raw)
+        if num and num > 0 then
+            normalized = 'rbxassetid://' .. tostring(math.floor(num))
+        else
+            normalized = normalizeAssetUrl(url)
+        end
+    end
     if normalized == nil then
         return
     end
@@ -1899,35 +1916,29 @@ end
 CLASS_HANDLERS.MeshPart = function(out, inst, _state)
     writeContentProps(out, inst, 'MeshPart')
 
-    local meshId = safeGet(inst, 'MeshId')
-    if meshId ~= nil then
-        local written = false
-        local ok, url = pcall(normalizeAssetUrl, meshId)
-        if ok and url ~= nil then
-            written = true
+    local function tryWriteRawContent(propName)
+        local raw = safeGet(inst, propName)
+        if raw == nil then
+            return
         end
-        if not written then
-            local s = tostring(meshId)
-            if s ~= '' and s ~= 'nil' and isValidAssetUrl(s) then
-                writeString(out, 'MeshId', s)
-            end
+        local s = tostring(raw)
+        if s == '' or s == 'nil' or s == 'nil' then
+            return
+        end
+        if s:find('rbxasset', 1, true) or s:find('http://', 1, true) or s:find('https://', 1, true) then
+            writeContent(out, propName, s)
+            return
+        end
+        local num = tonumber(s)
+        if num and num > 0 then
+            writeContent(out, propName, 'rbxassetid://' .. tostring(math.floor(num)))
+            return
         end
     end
 
-    local texId = safeGet(inst, 'TextureID')
-    if texId ~= nil then
-        local written = false
-        local ok, url = pcall(normalizeAssetUrl, texId)
-        if ok and url ~= nil then
-            written = true
-        end
-        if not written then
-            local s = tostring(texId)
-            if s ~= '' and s ~= 'nil' and isValidAssetUrl(s) then
-                writeString(out, 'TextureID', s)
-            end
-        end
-    end
+    tryWriteRawContent('MeshId')
+    tryWriteRawContent('TextureID')
+    tryWriteRawContent('TextureId')
 end
 
 CLASS_HANDLERS.SpecialMesh = function(out, inst, _state)
@@ -1938,6 +1949,34 @@ CLASS_HANDLERS.SpecialMesh = function(out, inst, _state)
     local mtVal = (type(mt) == 'table') and safeGet(mt, 'Value') or nil
     if type(mtVal) == 'number' then
         writeToken(out, 'MeshType', mtVal)
+    end
+    local rawMesh = safeGet(inst, 'MeshId')
+    if rawMesh ~= nil then
+        local s = tostring(rawMesh)
+        if s ~= '' and s ~= 'nil' then
+            if s:find('rbxasset', 1, true) or s:find('http://', 1, true) then
+                writeContent(out, 'MeshId', s)
+            else
+                local num = tonumber(s)
+                if num and num > 0 then
+                    writeContent(out, 'MeshId', 'rbxassetid://' .. tostring(math.floor(num)))
+                end
+            end
+        end
+    end
+    local rawTex = safeGet(inst, 'TextureId')
+    if rawTex ~= nil then
+        local s = tostring(rawTex)
+        if s ~= '' and s ~= 'nil' then
+            if s:find('rbxasset', 1, true) or s:find('http://', 1, true) then
+                writeContent(out, 'TextureId', s)
+            else
+                local num = tonumber(s)
+                if num and num > 0 then
+                    writeContent(out, 'TextureId', 'rbxassetid://' .. tostring(math.floor(num)))
+                end
+            end
+        end
     end
 end
 
